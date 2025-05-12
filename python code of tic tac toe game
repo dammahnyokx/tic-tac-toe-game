@@ -1,0 +1,113 @@
+import pygame
+import random
+import asyncio
+import platform
+
+# Initialize Pygame
+pygame.init()
+
+# Constants
+WIDTH = 800
+HEIGHT = 600
+FPS = 60
+BASKET_WIDTH = 100
+BASKET_HEIGHT = 50
+EGG_SIZE = 30
+EGG_SPEED = 5
+
+# Colors
+WHITE = (255, 255, 255)
+RED = (255, 0, 0)
+BROWN = (139, 69, 19)
+
+# Game variables
+basket_x = WIDTH // 2 - BASKET_WIDTH // 2
+basket_y = HEIGHT - BASKET_HEIGHT - 10
+eggs = []
+score = 0
+game_over = False
+
+# Set up display
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Egg Catcher")
+clock = pygame.time.Clock()
+font = pygame.font.SysFont(None, 36)
+
+def spawn_egg():
+    x = random.randint(0, WIDTH - EGG_SIZE)
+    return [x, 0]
+
+def setup():
+    global eggs, score, game_over, basket_x
+    eggs = [spawn_egg()]
+    score = 0
+    game_over = False
+    basket_x = WIDTH // 2 - BASKET_WIDTH // 2
+
+def update_loop():
+    global basket_x, eggs, score, game_over
+
+    if game_over:
+        return
+
+    # Handle events
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            game_over = True
+        elif event.type == pygame.KEYDOWN and game_over:
+            if event.key == pygame.K_r:
+                setup()  # Restart game
+
+    # Move basket
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_LEFT] and basket_x > 0:
+        basket_x -= 5
+    if keys[pygame.K_RIGHT] and basket_x < WIDTH - BASKET_WIDTH:
+        basket_x += 5
+
+    # Update eggs
+    new_eggs = []
+    for egg in eggs:
+        egg[1] += EGG_SPEED
+        if egg[1] < HEIGHT:
+            new_eggs.append(egg)
+        elif (basket_x <= egg[0] <= basket_x + BASKET_WIDTH and
+              basket_y <= egg[1] + EGG_SIZE <= basket_y + BASKET_HEIGHT):
+            score += 1
+        else:
+            game_over = True
+
+    eggs = new_eggs
+
+    # Spawn new egg
+    if random.random() < 0.02:
+        eggs.append(spawn_egg())
+
+    # Draw
+    screen.fill(WHITE)
+    pygame.draw.rect(screen, RED, (basket_x, basket_y, BASKET_WIDTH, BASKET_HEIGHT))
+    for egg in eggs:
+        pygame.draw.ellipse(screen, BROWN, (egg[0], egg[1], EGG_SIZE, EGG_SIZE))
+
+    # Draw score
+    score_text = font.render(f"Score: {score}", True, (0, 0, 0))
+    screen.blit(score_text, (10, 10))
+
+    # Draw game over
+    if game_over:
+        game_over_text = font.render("Game Over! Press R to Restart", True, (0, 0, 0))
+        screen.blit(game_over_text, (WIDTH // 2 - 150, HEIGHT // 2))
+
+    pygame.display.flip()
+
+async def main():
+    setup()
+    while True:
+        update_loop()
+        await asyncio.sleep(1.0 / FPS)
+
+if platform.system() == "Emscripten":
+    asyncio.ensure_future(main())
+else:
+    if __name__ == "__main__":
+        asyncio.run(main())
